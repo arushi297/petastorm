@@ -29,7 +29,7 @@ from petastorm.workers_pool.worker_base import WorkerBase
 
 class ArrowReaderWorkerResultsQueueReader(object):
     def __init__(self):
-        print("Arushi:ArrowReaderWorkerResultsQueueReader init")
+        # print("Arushi:ArrowReaderWorkerResultsQueueReader init")
         pass
 
     @property

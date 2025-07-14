@@ -288,8 +288,8 @@ def make_batch_reader(dataset_url_or_urls,
         other filesystem configs if it's provided.
     :return: A :class:`Reader` object
     """
-    print("Arushi: make_batch_reader called")
-    sys.stdout.flush()
+    #print("Arushi: make_batch_reader called")
+    #sys.stdout.flush
     dataset_url_or_urls = normalize_dataset_url_or_urls(dataset_url_or_urls)
 
     filesystem, dataset_path_or_paths = get_filesystem_and_path_or_paths(
@@ -317,14 +317,14 @@ def make_batch_reader(dataset_url_or_urls,
     else:
         raise ValueError('Unknown cache_type: {}'.format(cache_type))
     
-    print("Arushi: reader_pool_type: ", reader_pool_type)
-    sys.stdout.flush()
+    #print("Arushi: reader_pool_type: ", reader_pool_type)
+    #sys.stdout.flush
     if reader_pool_type == 'thread':
-        print("Arushi: About to instantiate ThreadPool (inside make_batch_reader)")
-        sys.stdout.flush()
+        #print("Arushi: About to instantiate ThreadPool (inside make_batch_reader)")
+        #sys.stdout.flush
         reader_pool = ThreadPool(workers_count, results_queue_size, shuffle_rows=shuffle_rows, seed=seed)
-        print("Arushi: ThreadPool instantiated (inside make_batch_reader)")
-        sys.stdout.flush()
+        #print("Arushi: ThreadPool instantiated (inside make_batch_reader)")
+        #sys.stdout.flush
     elif reader_pool_type == 'process':
         serializer = ArrowTableSerializer()
         reader_pool = ProcessPool(workers_count, serializer, zmq_copy_buffers=zmq_copy_buffers)
@@ -450,8 +450,8 @@ class Reader(object):
         cache = cache or NullCache()
 
         self._workers_pool = reader_pool or ThreadPool(10, shuffle_rows=shuffle_rows, seed=seed)
-        print(f"Arushi: Reader.__init__ completed. Instance ID: {id(self)}, workers_pool: {self._workers_pool}")
-        sys.stdout.flush()
+        #print(f"Arushi: Reader.__init__ completed. Instance ID: {id(self)}, workers_pool: {self._workers_pool}")
+        #sys.stdout.flush
 
         # Make a schema view (a view is a Unischema containing only a subset of fields
         # Will raise an exception if invalid schema fields are in schema_fields
@@ -495,8 +495,8 @@ class Reader(object):
                                                 self.ngram, row_groups, cache, transform_spec,
                                                 self.schema, filters, shuffle_rows, seed),
                                  ventilator=self.ventilator)
-        print('Arushi: Workers pool started')
-        sys.stdout.flush()
+        #print('Arushi: Workers pool started')
+        #sys.stdout.flush
 
         self.last_row_consumed = False
         self.stopped = False
@@ -674,8 +674,8 @@ class Reader(object):
                      'worker_predicate': worker_predicate,
                      'shuffle_row_drop_partition': (shuffle_row_drop_partition,
                                                     shuffle_row_drop_partitions)})
-        print(f"Arushi: _create_ventilator called with items_to_ventilate: {items_to_ventilate}")
-        sys.stdout.flush()
+        #print(f"Arushi: _create_ventilator called with items_to_ventilate: {items_to_ventilate}")
+        #sys.stdout.flush
         return ConcurrentVentilator(self._workers_pool.ventilate,
                                     items_to_ventilate,
                                     iterations=num_epochs,

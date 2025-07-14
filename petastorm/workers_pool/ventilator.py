@@ -89,8 +89,8 @@ class ConcurrentVentilator(Ventilator):
         """
         super(ConcurrentVentilator, self).__init__(ventilate_fn)
 
-        print(f"Arushi: ConcurrentVentilator.__init__ completed. Instance ID: {id(self)}, iterations: {iterations}")
-        sys.stdout.flush()
+        #print(f"Arushi: ConcurrentVentilator.__init__ completed. Instance ID: {id(self)}, iterations: {iterations}")
+        #sys.stdout.flush()
 
         if iterations is not None and (not isinstance(iterations, int) or iterations < 1):
             raise ValueError('iterations must be positive integer or None')
@@ -118,8 +118,8 @@ class ConcurrentVentilator(Ventilator):
         pass
 
     def completed(self):
-        # print(f"Arushi: completed called with _iterations_remaining: {self._iterations_remaining}, _stop_requested: {self._stop_requested}, len(_items_to_ventilate): {len(self._items_to_ventilate)}")
-        sys.stdout.flush()
+        #print(f"Arushi: completed called with _iterations_remaining: {self._iterations_remaining}, _stop_requested: {self._stop_requested}, len(_items_to_ventilate): {len(self._items_to_ventilate)}")
+        #sys.stdout.flush()
         assert self._iterations_remaining is None or self._iterations_remaining >= 0
         return self._stop_requested or self._iterations_remaining == 0 or not self._items_to_ventilate
 
@@ -135,17 +135,17 @@ class ConcurrentVentilator(Ventilator):
         self.start()
 
     def _ventilate(self):
-        print(f"Arushi: _ventilate called with len(items_to_ventilate): {len(self._items_to_ventilate)}, _randomize_item_order: {self._randomize_item_order}, _random_seed: {self._random_seed}, items_to_ventilate: {self._items_to_ventilate}")
-        sys.stdout.flush()
+        #print(f"Arushi: _ventilate called with len(items_to_ventilate): {len(self._items_to_ventilate)}, _randomize_item_order: {self._randomize_item_order}, _random_seed: {self._random_seed}, items_to_ventilate: {self._items_to_ventilate}")
+        #sys.stdout.flush()
         if self._randomize_item_order:
             if self._random_seed is not None and self._random_seed != 0:
                 # Deterministic randomization: use provided seed
-                self._items_to_ventilate = self._rng.permutation(self._items_to_ventilate)
+                self._items_to_ventilate = list(self._rng.permutation(self._items_to_ventilate))
             else:
                 # Non-deterministic randomization: use np.random 
-                self._items_to_ventilate = np.random.permutation(self._items_to_ventilate)
-        print(f"Arushi: after Randomisation with len(items_to_ventilate): {len(self._items_to_ventilate)}, items_to_ventilate: {self._items_to_ventilate}")
-        sys.stdout.flush()
+                self._items_to_ventilate = list(np.random.permutation(self._items_to_ventilate))
+        #print(f"Arushi: after Randomisation with len(items_to_ventilate): {len(self._items_to_ventilate)}, items_to_ventilate: {self._items_to_ventilate}")
+        #sys.stdout.flush()
 
         while True:
             # Stop condition is when no iterations are remaining or there are no items to ventilate
@@ -156,8 +156,10 @@ class ConcurrentVentilator(Ventilator):
 
             if self._iterations_remaining is not None:
                 self._iterations_remaining -= 1
+            elif self._iterations_remaining is None:
+                self._iterations_remaining = 0
             print(f"Arushi: _ventilate loop finished, new len(_iterations_remaining): {self._iterations_remaining}")
-            sys.stdout.flush()
+            #sys.stdout.flush()
 
     def stop(self):
         self._stop_requested = True
