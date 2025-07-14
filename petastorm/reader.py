@@ -11,15 +11,18 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+# import pdb; pdb.set_trace()
 
 import collections.abc
 import logging
+import sys
 import warnings
 
 import six
 from pyarrow import parquet as pq
 
-from petastorm.arrow_reader_worker import ArrowReaderWorker
+# Import ArrowReaderWorker from local modified file instead of installed package
+from arrow_reader_worker import ArrowReaderWorker
 from petastorm.cache import NullCache
 from petastorm.errors import NoDataAvailableError
 from petastorm.etl import dataset_metadata, rowgroup_indexing
@@ -35,8 +38,8 @@ from petastorm.selectors import RowGroupSelectorBase
 from petastorm.transform import transform_schema
 from petastorm.workers_pool.dummy_pool import DummyPool
 from petastorm.workers_pool.process_pool import ProcessPool
-from petastorm.workers_pool.thread_pool import ThreadPool
-from petastorm.workers_pool.ventilator import ConcurrentVentilator
+from thread_pool import ThreadPool
+from ventilator import ConcurrentVentilator
 
 logger = logging.getLogger(__name__)
 
@@ -159,7 +162,7 @@ def make_reader(dataset_url,
                       'To read from a non-Petastorm Parquet store use make_batch_reader')
 
     if reader_pool_type == 'thread':
-        reader_pool = ThreadPool(workers_count, results_queue_size)
+        reader_pool = ThreadPool(workers_count, results_queue_size, shuffle_rows=shuffle_rows, seed=seed)
     elif reader_pool_type == 'process':
         if pyarrow_serialize:
             warnings.warn("pyarrow_serializer was deprecated and will be removed in future versions. "
@@ -244,8 +247,6 @@ def make_batch_reader(dataset_url_or_urls,
         denoting a thread pool, process pool, or running everything in the master thread. Defaults to 'thread'
     :param workers_count: An int for the number of workers to use in the reader pool. This only is used for the
         thread or process pool. Defaults to 10
-    :param results_queue_size: Size of the results queue to store prefetched row-groups. Currently only applicable to
-        thread reader pool type.
     :param seed: Random seed specified for shuffle and sharding with reproducible outputs. Defaults to None
     :param shuffle_rows: Whether to shuffle inside a single row group. Defaults to False.
     :param shuffle_row_groups: Whether to shuffle row groups (the order in which full row groups are read)
@@ -287,6 +288,8 @@ def make_batch_reader(dataset_url_or_urls,
         other filesystem configs if it's provided.
     :return: A :class:`Reader` object
     """
+    print("Arushi: make_batch_reader called")
+    sys.stdout.flush()
     dataset_url_or_urls = normalize_dataset_url_or_urls(dataset_url_or_urls)
 
     filesystem, dataset_path_or_paths = get_filesystem_and_path_or_paths(
@@ -313,9 +316,15 @@ def make_batch_reader(dataset_url_or_urls,
                                **cache_extra_settings or {})
     else:
         raise ValueError('Unknown cache_type: {}'.format(cache_type))
-
+    
+    print("Arushi: reader_pool_type: ", reader_pool_type)
+    sys.stdout.flush()
     if reader_pool_type == 'thread':
-        reader_pool = ThreadPool(workers_count, results_queue_size)
+        print("Arushi: About to instantiate ThreadPool (inside make_batch_reader)")
+        sys.stdout.flush()
+        reader_pool = ThreadPool(workers_count, results_queue_size, shuffle_rows=shuffle_rows, seed=seed)
+        print("Arushi: ThreadPool instantiated (inside make_batch_reader)")
+        sys.stdout.flush()
     elif reader_pool_type == 'process':
         serializer = ArrowTableSerializer()
         reader_pool = ProcessPool(workers_count, serializer, zmq_copy_buffers=zmq_copy_buffers)
@@ -414,6 +423,7 @@ class Reader(object):
                 or schema_fields is None):
             raise ValueError('Fields must be either None, an iterable collection of Unischema fields '
                              'or an NGram object.')
+        # breakpoint()
 
         self.is_batched_reader = is_batched_reader
         # 1. Resolve dataset path (hdfs://, file://) and open the parquet storage (dataset)
@@ -439,7 +449,9 @@ class Reader(object):
 
         cache = cache or NullCache()
 
-        self._workers_pool = reader_pool or ThreadPool(10)
+        self._workers_pool = reader_pool or ThreadPool(10, shuffle_rows=shuffle_rows, seed=seed)
+        print(f"Arushi: Reader.__init__ completed. Instance ID: {id(self)}, workers_pool: {self._workers_pool}")
+        sys.stdout.flush()
 
         # Make a schema view (a view is a Unischema containing only a subset of fields
         # Will raise an exception if invalid schema fields are in schema_fields
@@ -477,13 +489,14 @@ class Reader(object):
                                                   self.num_epochs, worker_predicate,
                                                   self._workers_pool.workers_count + _VENTILATE_EXTRA_ROWGROUPS,
                                                   seed)
-
+        # breakpoint()
         # 5. Start workers pool
         self._workers_pool.start(worker_class, (pyarrow_filesystem, dataset_path, storage_schema,
                                                 self.ngram, row_groups, cache, transform_spec,
                                                 self.schema, filters, shuffle_rows, seed),
                                  ventilator=self.ventilator)
-        logger.debug('Workers pool started')
+        print('Arushi: Workers pool started')
+        sys.stdout.flush()
 
         self.last_row_consumed = False
         self.stopped = False
@@ -661,11 +674,11 @@ class Reader(object):
                      'worker_predicate': worker_predicate,
                      'shuffle_row_drop_partition': (shuffle_row_drop_partition,
                                                     shuffle_row_drop_partitions)})
-
+        print(f"Arushi: _create_ventilator called with items_to_ventilate: {items_to_ventilate}")
+        sys.stdout.flush()
         return ConcurrentVentilator(self._workers_pool.ventilate,
                                     items_to_ventilate,
                                     iterations=num_epochs,
-                                    max_ventilation_queue_size=max_ventilation_queue_size,
                                     randomize_item_order=shuffle_row_groups,
                                     random_seed=seed)
 
