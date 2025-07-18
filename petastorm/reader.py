@@ -19,7 +19,7 @@ import warnings
 import six
 from pyarrow import parquet as pq
 
-from petastorm.arrow_reader_worker import ArrowReaderWorker
+from arrow_reader_worker import ArrowReaderWorker
 from petastorm.cache import NullCache
 from petastorm.errors import NoDataAvailableError
 from petastorm.etl import dataset_metadata, rowgroup_indexing
@@ -35,8 +35,8 @@ from petastorm.selectors import RowGroupSelectorBase
 from petastorm.transform import transform_schema
 from petastorm.workers_pool.dummy_pool import DummyPool
 from petastorm.workers_pool.process_pool import ProcessPool
-from petastorm.workers_pool.thread_pool import ThreadPool
-from petastorm.workers_pool.ventilator import ConcurrentVentilator
+from thread_pool import ThreadPool
+from ventilator import ConcurrentVentilator
 
 logger = logging.getLogger(__name__)
 
@@ -159,7 +159,7 @@ def make_reader(dataset_url,
                       'To read from a non-Petastorm Parquet store use make_batch_reader')
 
     if reader_pool_type == 'thread':
-        reader_pool = ThreadPool(workers_count, results_queue_size)
+        reader_pool = ThreadPool(workers_count, results_queue_size, shuffle_rows, seed)
     elif reader_pool_type == 'process':
         if pyarrow_serialize:
             warnings.warn("pyarrow_serializer was deprecated and will be removed in future versions. "
@@ -315,7 +315,7 @@ def make_batch_reader(dataset_url_or_urls,
         raise ValueError('Unknown cache_type: {}'.format(cache_type))
 
     if reader_pool_type == 'thread':
-        reader_pool = ThreadPool(workers_count, results_queue_size)
+        reader_pool = ThreadPool(workers_count, results_queue_size, shuffle_rows, seed)
     elif reader_pool_type == 'process':
         serializer = ArrowTableSerializer()
         reader_pool = ProcessPool(workers_count, serializer, zmq_copy_buffers=zmq_copy_buffers)
@@ -439,7 +439,7 @@ class Reader(object):
 
         cache = cache or NullCache()
 
-        self._workers_pool = reader_pool or ThreadPool(10)
+        self._workers_pool = reader_pool or ThreadPool(10, shuffle_rows=shuffle_rows, seed=seed)
 
         # Make a schema view (a view is a Unischema containing only a subset of fields
         # Will raise an exception if invalid schema fields are in schema_fields
