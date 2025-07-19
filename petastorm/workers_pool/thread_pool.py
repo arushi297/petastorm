@@ -139,6 +139,7 @@ class ThreadPool(object):
         self._shared_results_queue = queue.Queue(self._results_queue_size)
         self._workers = []
         self.thread_pool = self
+        self._round_robin_thread_started = False
         
         
         for worker_id in range(self.workers_count):
@@ -177,10 +178,13 @@ class ThreadPool(object):
             self._ventilator_queues[worker_id].put(item)
             self._items_per_worker[worker_id] += 1
             self._ventilated_items += 1
-        
+        # if self._ventilated_items % len(items_to_ventilate) == 0:
+        #     # print(f"ventilate _ventilator_queues{len(self._ventilator_queues[0])}  _ventilated_items{self._ventilated_items}")
+        #     print(f"ventilate  _ventilated_items{self._ventilated_items}")
         # Start the round-robin consumer after ventilation has started
-        if self._round_robin_thread and not self._round_robin_thread.is_alive():
+        if self._round_robin_thread and not self._round_robin_thread.is_alive() and not self._round_robin_thread_started:
             self._round_robin_thread.start()
+            self._round_robin_thread_started = True
          
 
     def all_workers_done(self):
@@ -192,9 +196,11 @@ class ThreadPool(object):
     def completed(self):
         # If all workers are done and shared queue is empty, raise EmptyResultError
         if self.all_workers_done() and self._shared_results_queue.empty():
-            if not self._ventilator or self._ventilator.completed():
-                return True
+            return True
+            # if not self._ventilator or self._ventilator.completed():
+            #     return True
         return False
+        # return True
 
 
     def get_results(self):
@@ -243,15 +249,6 @@ class ThreadPool(object):
         if self._round_robin_thread and self._round_robin_thread.is_alive():
             self._round_robin_thread.join()
 
-        if self._profiling_enabled:
-            stats = None
-            for w in self._workers:
-                if stats:
-                    stats.add(w.prof)
-                else:
-                    stats = pstats.Stats(w.prof)
-            stats.sort_stats('cumulative').print_stats()
-        
         if self._profiling_enabled:
             stats = None
             for w in self._workers:

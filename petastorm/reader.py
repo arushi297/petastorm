@@ -21,7 +21,7 @@ import six
 from pyarrow import parquet as pq
 
 # Import ArrowReaderWorker from local modified file instead of installed package
-from arrow_reader_worker import ArrowReaderWorker
+from .arrow_reader_worker import ArrowReaderWorker
 from petastorm.cache import NullCache
 from petastorm.errors import NoDataAvailableError
 from petastorm.etl import dataset_metadata, rowgroup_indexing
@@ -37,8 +37,8 @@ from petastorm.selectors import RowGroupSelectorBase
 from petastorm.transform import transform_schema
 from petastorm.workers_pool.dummy_pool import DummyPool
 from petastorm.workers_pool.process_pool import ProcessPool
-from thread_pool import ThreadPool
-from ventilator import ConcurrentVentilator
+from petastorm.workers_pool.thread_pool import ThreadPool
+from petastorm.workers_pool.ventilator import ConcurrentVentilator
 
 logger = logging.getLogger(__name__)
 
@@ -659,12 +659,16 @@ class Reader(object):
                      'worker_predicate': worker_predicate,
                      'shuffle_row_drop_partition': (shuffle_row_drop_partition,
                                                     shuffle_row_drop_partitions)})
-        return ConcurrentVentilator(self._workers_pool.ventilate,
+        # return ConcurrentVentilator(self._workers_pool.ventilate,
+        #                             items_to_ventilate,
+        #                             iterations=num_epochs,
+        #                             randomize_item_order=shuffle_row_groups,
+        #                             random_seed=seed)
+        return ConcurrentVentilator(self._workers_pool,
                                     items_to_ventilate,
                                     iterations=num_epochs,
                                     randomize_item_order=shuffle_row_groups,
                                     random_seed=seed)
-
     def stop(self):
         """Stops all worker threads/processes."""
         self._workers_pool.stop()

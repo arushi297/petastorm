@@ -27,8 +27,12 @@ _VENTILATION_INTERVAL = 0.01
 class Ventilator(object):
     """Manages items to be ventilated to a worker pool."""
 
-    def __init__(self, ventilate_fn):
-        self._ventilate_fn = ventilate_fn
+    # def __init__(self, ventilate_fn):
+    #     self._ventilate_fn = ventilate_fn
+
+    def __init__(self, workers_pool):
+        self._workers_pool = workers_pool
+        self._ventilate_fn = self._workers_pool.ventilate
 
     @abstractmethod
     def start(self):
@@ -63,7 +67,7 @@ class ConcurrentVentilator(Ventilator):
     """
 
     def __init__(self,
-                 ventilate_fn,
+                 workers_pool,
                  items_to_ventilate,
                  iterations=1,
                  randomize_item_order=False,
@@ -86,7 +90,7 @@ class ConcurrentVentilator(Ventilator):
         :param ventilation_interval: (``float`` in seconds) How much time passes between checks on whether something
                 can be ventilated (when the ventilation queue is considered full).
         """
-        super(ConcurrentVentilator, self).__init__(ventilate_fn)
+        super(ConcurrentVentilator, self).__init__(workers_pool)
 
         if iterations is not None and (not isinstance(iterations, int) or iterations < 1):
             raise ValueError('iterations must be positive integer or None')
@@ -95,7 +99,7 @@ class ConcurrentVentilator(Ventilator):
             raise ValueError('items_to_ventilate must be a list of dicts')
 
         self._items_to_ventilate = items_to_ventilate
-        self._iterations_remaining = iterations
+        self._iterations_remaining = iterations if iterations else 100000
         self._randomize_item_order = randomize_item_order
         self._random_seed = random_seed
         self._rng = np.random.default_rng(self._random_seed)
@@ -115,7 +119,7 @@ class ConcurrentVentilator(Ventilator):
 
     def completed(self):
         assert self._iterations_remaining is None or self._iterations_remaining >= 0
-        return self._stop_requested or self._iterations_remaining == 0 or not self._items_to_ventilate
+        return self._stop_requested or self._iterations_remaining == 0 or not self._items_to_ventilate or self._iterations_remaining == 0
 
     def reset(self):
         """Will restart the ventilation from the beginning. Currently, we may do this only if the ventilator has
@@ -129,25 +133,45 @@ class ConcurrentVentilator(Ventilator):
         self.start()
 
     def _ventilate(self):
-        if self._randomize_item_order:
-            if self._random_seed is not None and self._random_seed != 0:
-                # Deterministic randomization: use provided seed
-                self._items_to_ventilate = list(self._rng.permutation(self._items_to_ventilate))
-            else:
-                # Non-deterministic randomization: use np.random 
-                self._items_to_ventilate = list(np.random.permutation(self._items_to_ventilate))
+        # if self._randomize_item_order:
+        #     if self._random_seed is not None and self._random_seed != 0:
+        #         # Deterministic randomization: use provided seed
+        #         self._items_to_ventilate = list(self._rng.permutation(self._items_to_ventilate))
+        #     else:
+        #         # Non-deterministic randomization: use np.random 
+        #         self._items_to_ventilate = list(np.random.permutation(self._items_to_ventilate))
 
-        while True:
-            # Stop condition is when no iterations are remaining or there are no items to ventilate
-            if self.completed():
-                break
+        # while True:
+        #     # Stop condition is when no iterations are remaining or there are no items to ventilate
+        #     if self.completed():
+        #         break
+
+        #     self._ventilate_fn(self._items_to_ventilate)
+
+        #     # print(f"_ventilate _iterations_remaining{self._iterations_remaining} self._items_to_ventilate:{len(self._items_to_ventilate)}")
+        #     if self._iterations_remaining is not None:
+        #         self._iterations_remaining -= 1
+        #     # elif self._iterations_remaining is None:
+        #     #     self._iterations_remaining = 0
+            
+        #     while True:
+        #         # sleep(7.31)
+        #         if self._workers_pool.completed():
+        #             break
+
+        for i in range(self._iterations_remaining):
+            if self._randomize_item_order:
+                if self._random_seed is not None and self._random_seed != 0:
+                    # Deterministic randomization: use provided seed
+                    self._items_to_ventilate = list(self._rng.permutation(self._items_to_ventilate))
+                else:
+                    # Non-deterministic randomization: use np.random 
+                    self._items_to_ventilate = list(np.random.permutation(self._items_to_ventilate))
 
             self._ventilate_fn(self._items_to_ventilate)
+            # if self._workers_pool.completed():
+            #     break
 
-            if self._iterations_remaining is not None:
-                self._iterations_remaining -= 1
-            elif self._iterations_remaining is None:
-                self._iterations_remaining = 0
 
     def stop(self):
         self._stop_requested = True
